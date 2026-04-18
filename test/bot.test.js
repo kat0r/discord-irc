@@ -81,6 +81,14 @@ describe('Bot', function () {
     return attachments;
   };
 
+  const createStickers = (...stickers) => {
+    const stickerCollection = new discord.Collection();
+    stickers.forEach((sticker, index) => {
+      stickerCollection.set(index, sticker);
+    });
+    return stickerCollection;
+  };
+
   it('should invert the channel mapping', function () {
     this.bot.invertedMapping['#irc'].should.equal('#discord');
   });
@@ -307,6 +315,49 @@ describe('Bot', function () {
     );
 
     const expected = `<\u000304${message.author.username}\u000f> ${attachmentUrl}`;
+    ClientStub.prototype.say.should.have.been.calledWith('#irc', expected);
+  });
+
+  it('should send sticker description to IRC when available', function () {
+    const message = {
+      content: '',
+      mentions: { users: [] },
+      stickers: createStickers({ name: 'catJAM', description: 'Vibing cat' }),
+      channel: {
+        name: 'discord'
+      },
+      author: {
+        username: 'otherauthor',
+        id: 'not bot id'
+      },
+      guild: this.guild
+    };
+
+    this.bot.sendToIRC(message);
+
+    const expected = `<\u000304${message.author.username}\u000f> [Sticker: Vibing cat]`;
+    ClientStub.prototype.say.should.have.been.calledWith('#irc', expected);
+    ClientStub.prototype.say.should.have.been.calledOnce;
+  });
+
+  it('should send sticker name to IRC if description is unavailable', function () {
+    const message = {
+      content: '',
+      mentions: { users: [] },
+      stickerItems: createStickers({ name: 'catJAM' }),
+      channel: {
+        name: 'discord'
+      },
+      author: {
+        username: 'otherauthor',
+        id: 'not bot id'
+      },
+      guild: this.guild
+    };
+
+    this.bot.sendToIRC(message);
+
+    const expected = `<\u000304${message.author.username}\u000f> [Sticker: catJAM]`;
     ClientStub.prototype.say.should.have.been.calledWith('#irc', expected);
   });
 
@@ -963,6 +1014,29 @@ describe('Bot', function () {
 
     this.bot.sendToIRC(message);
     const expected = `<otherauthor> #discord => #irc, attachment: ${attachmentUrl}`;
+    ClientStub.prototype.say.should.have.been.calledWith('#irc', expected);
+  });
+
+  it('should respect custom formatting for stickers in IRC output', function () {
+    const format = { sticker: '<{$nickname}> {$discordChannel} => {$ircChannel}, sticker: {$sticker}' };
+    this.setCustomBot({ ...configMsgFormatDefault, format });
+
+    const message = {
+      content: '',
+      mentions: { users: [] },
+      stickers: createStickers({ name: 'catJAM', description: 'Vibing cat' }),
+      channel: {
+        name: 'discord'
+      },
+      author: {
+        username: 'otherauthor',
+        id: 'not bot id'
+      },
+      guild: this.guild
+    };
+
+    this.bot.sendToIRC(message);
+    const expected = '<otherauthor> #discord => #irc, sticker: Vibing cat';
     ClientStub.prototype.say.should.have.been.calledWith('#irc', expected);
   });
 
