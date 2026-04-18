@@ -361,6 +361,36 @@ describe('Bot', function () {
     ClientStub.prototype.say.should.have.been.calledWith('#irc', expected);
   });
 
+  it('should send stickers from raw Discord message payloads to IRC', function () {
+    const messageId = '1234567890';
+    const message = {
+      id: messageId,
+      content: '',
+      mentions: { users: [] },
+      channel: {
+        name: 'discord'
+      },
+      author: {
+        username: 'otherauthor',
+        id: 'not bot id'
+      },
+      guild: this.guild
+    };
+
+    this.bot.discord.emit('raw', {
+      t: 'MESSAGE_CREATE',
+      d: {
+        id: messageId,
+        sticker_items: [{ name: 'catJAM', description: 'Vibing cat' }]
+      }
+    });
+    this.bot.discord.emit('message', message);
+
+    const expected = `<\u000304${message.author.username}\u000f> [Sticker: Vibing cat]`;
+    ClientStub.prototype.say.should.have.been.calledWith('#irc', expected);
+    ClientStub.prototype.say.should.have.been.calledOnce;
+  });
+
   it('should not send an empty text message with an attachment to IRC', function () {
     const message = {
       content: '',
